@@ -1,6 +1,16 @@
 {{> header}}
-<form class="text-center p-5 form-layout" action="#" method="POST">
-
+<div id="notifications">
+    <div id="successBox" class="notification">
+        <span>User registration successful.</span>
+    </div>
+    <div id="loadingBox" class="notification">
+        <span>Loading …</span>
+    </div>
+    <div id="errorBox" class="notification">
+        <span>Error...</span>
+    </div>
+</div>
+<form class="text-center p-5 form-layout" action="#/register" method="POST">
             <p class="h4 mb-4">Sign up</p>
 
             <div class="form-row mb-4">

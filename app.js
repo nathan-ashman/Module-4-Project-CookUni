@@ -1,148 +1,167 @@
 const app = Sammy("#rooter", function () {
-	this.use("Handlebars", "hbs");
+  this.use("Handlebars", "hbs");
 
-	// Home
-	this.get("#/home", home);
-	// Details
-	this.get("#/details/:id", details);
-	// Profile
-	this.get("#/footer", footer);
-	//this.get("#/delete/:id", deleteItem);
+  // Home
+  this.get("#/home", home);
+  // Details
+  this.get("#/details/:id", details);
+  // Profile
+  this.get("#/footer", footer);
+  //this.get("#/delete/:id", deleteItem);
 
-	// Create
-	this.get("#/share", shareRecipe);
-	//this.post("#/create", createPost);
+  // Create
+  this.get("#/share", getShareRecipePage);
+  this.post("#/share", shareRecipe);
 
-	//login
-	this.get("#/login", function (context) {
-		//get the login page
-		context
-			.loadPartials({
-				header: "../views/header.hbs",
-			})
-			.then(function () {
-				this.partial("./views/login.hbs", function (details) {
-					console.log("went to login!");
-				});
-			});
-	});
-	this.post("#/login", function (context) {
-        //document.getElementById('notifications').style.display = "none";
-		//pulls in the login post information
-		//then validates if the user can log in or not
-		//if successful redirect to the profile page
-        let username = this.params.username;
-        let password = this.params.password;
-        document.getElementById('loadingBox').style.display = "block";
-        fetch("https://baas.kinvey.com/user/kid_HyVrMGSZt", {
-            method: "GET",
-            headers: {
-                "Authorization": "Basic ZWRwNDQ1OmN1cGNha2U="
+  //login
+  this.get("#/login", function (context) {
+    //get the login page
+    context
+      .loadPartials({
+        header: "../views/header.hbs",
+      })
+      .then(function () {
+        this.partial("./views/login.hbs", function (details) {
+          console.log("went to login!");
+        });
+      });
+  });
+  this.post("#/login", function (context) {
+    //pulls in the login post information
+    //then validates if the user can log in or not
+    //if successful redirect to the profile page
+    let username = this.params.username;
+    let password = this.params.password;
+    
+    document.getElementById("successBox").style.display = "none";
+    document.getElementById("errorBox").style.display = "none";
+    document.getElementById("successBox").style.innerHTML = "";
+    document.getElementById("errorBox").style.innerHTML = "";
+    document.getElementById("loadingBox").style.display = "block";
+    fetch("https://recipes-1a392-default-rtdb.firebaseio.com/users.json").then((response) => {
+          return response.json();
+        }).then((usersObj) => {
+          let ids = Object.keys(usersObj);
+          let usernames = Object.values(usersObj).map(obj=>obj.username);
+          let passwords = Object.values(usersObj).map(obj=>obj.password);
+          let foundUsername = usernames.find((user) => {
+            return user == username;
+          });
+          let foundPassword = passwords.find((pass) => {
+            return pass == password;
+        })
+        let usernameIndex = usernames.indexOf(foundUsername);
+        let userid = ids[usernameIndex];
+        if(foundUsername && foundPassword){
+          fetch(
+            "https://recipes-1a392-default-rtdb.firebaseio.com/loggedin.json",
+            {
+              method: "POST",
+              body: JSON.stringify({
+                username,
+                password
+              }),
             }
-        })
-        .then(response=>{
-            return response.json()
-        })
-        .then(users=>{
-                // let userArray = Object.entries(users);
-                let hasUser = users.find(user=>{
-                    return user.username == username;
-                });
-
-                if(hasUser != undefined){
-                    //check the password
-                    if(hasUser.pass == password){
-                    //logged In!!!!
-                        user = hasUser.username;
-                        document.getElementById('successBox').style.display = "block";
-                        setTimeout(()=>{
-                            context.redirect('#/home');
-                        }, 3000);
-                    }else{
-                        //send error to the front end
-                        document.getElementById('errorBox').style.display = "block";
-                    }
-                }
-
+          ).then((response) => {
+              document.getElementById("loadingBox").style.display = "block";
+              document.getElementById("successBox").style.display = "block";
+              //user = userid;
+              user=username;
+              setTimeout(()=>{
+                context.redirect("#/home");
+              }, 3000);
             })
-            .catch(err=>{
-                console.log(err);
+            .catch((err) => {
+              document.getElementById("successBox").style.innerHTML =
+                err.description;
+              document.getElementById("successBox").style.display = "block";
+            });
+        }
+      });
+  });
+
+  // //register
+  this.get("#/register", function (context) {
+    //document.getElementById('notifications').style.display = "none";
+    //pulls in the login post information
+    //then validates if the user can log in or not
+    //if successful redirect to the profile page
+
+    context
+      .loadPartials({
+        header: "../views/header.hbs",
+      })
+      .then(function () {
+        this.partial("./views/register.hbs", function (details) {
+          console.log("went to register!");
+        });
+      });
+  });
+  this.post("#/register", function (context) {
+    //pulls in the register post information
+    //then validates if the user can create an account or not
+    //if successful redirect to the home page || loginpage
+    let username = this.params.username;
+    let password = this.params.password;
+    let firstName = this.params.firstName;
+    let lastName = this.params.lastName;
+    document.getElementById("successBox").style.display = "none";
+    document.getElementById("errorBox").style.display = "none";
+    document.getElementById("successBox").style.innerHTML = "";
+    document.getElementById("errorBox").style.innerHTML = "";
+    //document.getElementById('loadingBox').style.display = "block";
+    fetch("https://recipes-1a392-default-rtdb.firebaseio.com/users.json", {
+      mode: "no-cors",
+    })
+      .then((response) => {
+        return response;
+      })
+      .then(async (usersObj) => {
+        let usernames = Object.keys(usersObj);
+        let foundUsername = usernames.find((user) => {
+          return user == username;
+        });
+        if (!foundUsername) {
+          await fetch(
+            "https://recipes-1a392-default-rtdb.firebaseio.com/users.json",
+            {
+              mode: "no-cors",
+              method: "POST", // *GET, POST, PUT, DELETE, etc.
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                username: username,
+                password: password,
+                firstName: firstName,
+                lastName: lastName,
+              }),
+            }
+          )
+            .then((response) => {
+              document.getElementById("loadingBox").style.display = "block";
+              document.getElementById("successBox").style.innerHTML =
+                "User registration successful.";
+              document.getElementById("successBox").style.display = "block";
+              context.redirect("#/login");
             })
-	});
-	// //register
-	this.get("#/register", function (context) {
-		//get the login page
-		context
-			.loadPartials({
-				header: "../views/header.hbs",
-			})
-			.then(function () {
-				this.partial("./views/register.hbs", function (details) {
-					console.log("went to register!");
-				});
-			});
-	});
-	// this.post("#/register", function (context) {
-	// 	//pulls in the register post information
-	// 	//then validates if the user can create an account or not
-	// 	//if successful redirect to the home page || loginpage
-    //     let username = this.params.username;
-    //     let password = this.params.password;
+            .catch((err) => {
+              document.getElementById("successBox").style.innerHTML =
+                err.description;
+              document.getElementById("successBox").style.display = "block";
+            });
+        }
+      });
+  });
+  // //logout
+  // this.get("#/logout", function (context) {
 
-    //     fetch("https://routing-lab-6734f-default-rtdb.firebaseio.com/users.json")
-    //         .then(response=>{
-    //             return response.json()
-    //         })
-    //         .then(users=>{
-    //             let userArray = Object.entries(users);
-    //             console.log(users);
-    //             let hasUser = userArray.find(user=>{
-    //                 let [userID,userObj] = user;
-    //                 return userObj.username == username;
-    //             });
+  //     user="";
+  //     context.redirect('#/home');
 
-    //             if(hasUser== undefined){
-
-    //                 //add the new user
-    //                 let url = "https://routing-lab-6734f-default-rtdb.firebaseio.com/users.json";
-    //                 let headers = {
-    //                     method: "POST", // *GET, POST, PUT, DELETE, etc.
-    //                     headers: {
-    //                         "Content-Type": "application/json",
-    //                     },
-    //                     body: JSON.stringify({
-    //                         username,
-    //                         password
-    //                     }),
-    //                 };
-    //                 fetch(url,headers)
-    //                     .then(response=>{
-    //                         if( response.status== 200){
-    //                             context.redirect('#/login');
-    //                         }
-    //                     });
-                   
-
-    //             }else{
-    //                 //send error to the front end
-    //                 document.getElementById("username").classList.add("is-invalid");
-    //             }
-
-    //         })
-    //         .catch(err=>{
-    //             console.log(err);
-    //         })
-	// });
-	// //logout
-	// this.get("#/logout", function (context) {
-
-    //     user="";
-    //     context.redirect('#/home');
-
-    // });
+  // });
 });
 
 (() => {
-	app.run("#/home");
-})()
-   
+  app.run("#/home");
+})();
