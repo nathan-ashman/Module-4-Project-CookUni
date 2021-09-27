@@ -15,9 +15,9 @@
 			<div class="actions">
 				{{#if sameUser}}
 					<a class="btn btn-danger" href="#">Archive</a>
-					<a class="btn btn-info" href="#">Edit</a>
+					<a class="btn btn-info" href="#/edit/:{{id}}">Edit</a>
 				{{else}}
-					<a class="btn btn-success" href="#"> {{likesCounter}} likes</a>
+					<a class="btn btn-success" href="#/details:{{id}}"> {{likesCounter}} likes</a>
 				{{/if}}
 			</div>
 		</div>

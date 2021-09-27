@@ -6,7 +6,13 @@ function home(context) {
         fetch("https://recipes-1a392-default-rtdb.firebaseio.com/recipes.json")
         .then((response) => {return response.json()})
         .then(function (data) {
-            data = Object.entries(data).map(arr=>arr[1]);
+            let recipeIDs = Object.entries(data).map(arr=>arr[0]);
+            data = Object.entries(data).map(arr=>arr[1])
+            let i = 0;
+            data.forEach(obj=>{
+                obj.id = recipeIDs[i];
+                i++;
+            })
             context.recipes = data;
             if(user.length != 0){
                 context.loggedIn = true;
@@ -34,13 +40,149 @@ function home(context) {
     });   
 }
 
+function getLoginPage(context) {
+    context
+      .loadPartials({
+        header: "../views/header.hbs",
+      })
+      .then(function () {
+        this.partial("./views/login.hbs", function (details) {
+          console.log("went to login!");
+        });
+      });
+}
+
+function login(context) {
+    //pulls in the login post information
+    //then validates if the user can log in or not
+    //if successful redirect to the profile page
+    let username = this.params.username;
+    let password = this.params.password;
+    
+    document.getElementById("successBox").style.display = "none";
+    document.getElementById("errorBox").style.display = "none";
+    document.getElementById("successBox").style.innerHTML = "";
+    document.getElementById("errorBox").style.innerHTML = "";
+    document.getElementById("loadingBox").style.display = "block";
+    fetch("https://recipes-1a392-default-rtdb.firebaseio.com/users.json").then((response) => {
+          return response.json();
+        }).then((usersObj) => {
+          let ids = Object.keys(usersObj);
+          let usernames = Object.values(usersObj).map(obj=>obj.username);
+          let passwords = Object.values(usersObj).map(obj=>obj.password);
+          let foundUsername = usernames.find((user) => {
+            return user == username;
+          });
+          let foundPassword = passwords.find((pass) => {
+            return pass == password;
+        })
+        let usernameIndex = usernames.indexOf(foundUsername);
+        let userid = ids[usernameIndex];
+        if(foundUsername && foundPassword){
+          fetch(
+            "https://recipes-1a392-default-rtdb.firebaseio.com/loggedin.json",
+            {
+              method: "POST",
+              body: JSON.stringify({
+                username,
+                password
+              }),
+            }
+          ).then((response) => {
+              document.getElementById("loadingBox").style.display = "block";
+              document.getElementById("successBox").style.display = "block";
+              //user = userid;
+              user=username;
+              setTimeout(()=>{
+                context.redirect("#/home");
+              }, 3000);
+            })
+            .catch((err) => {
+              document.getElementById("successBox").style.innerHTML =
+                err.description;
+              document.getElementById("successBox").style.display = "block";
+            });
+        }
+      });
+  }
+
+  function getRegisterPage(context) {
+    //document.getElementById('notifications').style.display = "none";
+    //pulls in the login post information
+    //then validates if the user can log in or not
+    //if successful redirect to the profile page
+    context
+      .loadPartials({
+        header: "../views/header.hbs",
+      })
+      .then(function () {
+        this.partial("./views/register.hbs", function (details) {
+          console.log("went to register!");
+        });
+      });
+  }
+  function register(context) {
+    //pulls in the register post information
+    //then validates if the user can create an account or not
+    //if successful redirect to the home page || loginpage
+    let username = this.params.username;
+    let password = this.params.password;
+    let firstName = this.params.firstName;
+    let lastName = this.params.lastName;
+    document.getElementById("successBox").style.display = "none";
+    document.getElementById("errorBox").style.display = "none";
+    document.getElementById("successBox").style.innerHTML = "";
+    document.getElementById("errorBox").style.innerHTML = "";
+    //document.getElementById('loadingBox').style.display = "block";
+    fetch("https://recipes-1a392-default-rtdb.firebaseio.com/users.json", {
+      mode: "no-cors",
+    })
+      .then((response) => {
+        return response;
+      })
+      .then(async (usersObj) => {
+        let usernames = Object.keys(usersObj);
+        let foundUsername = usernames.find((user) => {
+          return user == username;
+        });
+        if (!foundUsername) {
+          await fetch(
+            "https://recipes-1a392-default-rtdb.firebaseio.com/users.json",
+            {
+              mode: "no-cors",
+              method: "POST", // *GET, POST, PUT, DELETE, etc.
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                username: username,
+                password: password,
+                firstName: firstName,
+                lastName: lastName,
+              }),
+            }
+          )
+            .then((response) => {
+              document.getElementById("loadingBox").style.display = "block";
+              document.getElementById("successBox").style.innerHTML =
+                "User registration successful.";
+              document.getElementById("successBox").style.display = "block";
+              context.redirect("#/login");
+            })
+            .catch((err) => {
+              document.getElementById("successBox").style.innerHTML =
+                err.description;
+              document.getElementById("successBox").style.display = "block";
+            });
+        }
+      });
+  }
 async function details(context) {
         let recipeID = this.params.id;
-        context.id = recipeID;
-        // console.log(recipeID);
-        let recipeObj = await fetch(`https://recipes-1a392-default-rtdb.firebaseio.com/recipes/${recipeID}.json`)
-        .then(function (response) {
-            return JSON.stringify(response);
+        context.id = recipeID.substr(1);
+        let recipeObj = await fetch(`https://recipes-1a392-default-rtdb.firebaseio.com/recipes/${context.id}.json`)
+        .then((response)=>{
+            return response.json()
         })
         context.description = recipeObj.description;
         context.foodImageURL = recipeObj.foodImageURL;
@@ -50,18 +192,21 @@ async function details(context) {
         context.category = recipeObj.category;
         context.categoryImageURL = recipeObj.categoryImageURL;
         context.userID = user;
-        context.creator = recipeObj.creator;
+        context.originalPoster = recipeObj.originalPoster;
         context.likesCounter = recipeObj.likesCounter;
-        if(context.creator == user){
+        if(context.originalPoster == user){
             context.sameUser = true;
         }else {
             context.sameUser = false;
         }
+
         if(user.length != 0){
             context.loggedIn = true;
         }else{
             context.loggedIn = false;
         }
+
+        
         
     context
     .loadPartials({
@@ -70,6 +215,11 @@ async function details(context) {
     .then(function () {
         this.partial("./views/details.hbs", function (details) {
             console.log("went to details!");
+            if(context.loggedIn == true){
+                let welcome = document.getElementsByTagName('a')[1];
+                welcome.innerHTML+=user+"!";
+            }
+            
         });
     });
 
@@ -86,60 +236,6 @@ function footer(context) {
             console.log("went to profile!");
         });
     });
-    // let furniture = [
-    // 	{
-    // 		id: "-MjuM5NtwLEGafDenhIP",
-    // 		imageUrl: "image",
-    // 		description: "words",
-    // 		year: 10,
-    // 	},
-    // ];
-    // fetch("https://routing-lab-6734f-default-rtdb.firebaseio.com/furniture.json")
-    // .then(function (response) {
-    //     console.log(response);
-    //     return response.json();
-    // })
-    // .then(function (data) {
-    //     // get the template as a handlebars string
-    //     console.log(data);
-        
-    //     //take data and turn it into an array of objects
-    //     let furnitureArray = Object.entries(data);
-        
-    //     console.log(furnitureArray);
-    //     //[ [furnitureID,object],[furnitureID,object],[furnitureID,object]]
-    //     //[object,object,object]
-    //     furnitureArray = furnitureArray
-    //         .map(function(innerArray){
-    //             let [furnitureID,furnitureObject] =innerArray;
-    //             furnitureObject.id = furnitureID;
-    //             return furnitureObject;
-    //         })
-    //         .filter(function(object){
-    //             return user== object.userID;
-    //         });
-       
-    //     console.log(furnitureArray);
-    //     context.furniture = furnitureArray;
-    //     if(user.length != 0){
-    //         context.loggiedIn =true;
-    //     }else{
-    //         context.loggiedIn =false;
-    //     }
-    //     context
-    //     .loadPartials({
-    //         header: "../views/header.hbs",
-    //     })
-    //     .then(function () {
-    //         this.partial("./views/profile.hbs", function (details) {
-    //             console.log("went profile!");
-    //         });
-    //     });
-    // })
-    // .catch((err) => {
-    //     console.log(err);
-    //     //change html to show an error has occured
-    // });    
 }
 
 
@@ -167,13 +263,22 @@ function deleteItem(context) {
 }
 
 function getShareRecipePage(context) {
+    if(user.length != 0){
+        context.loggedIn = true;
+    }else{
+        context.loggedIn = false;
+    }
     context
     .loadPartials({
         header: "../views/header.hbs",
     })
     .then(function () {
         this.partial("./views/share.hbs", function (details) {
-            console.log("went to share recipe page!");
+            console.log("went to share recipe page!");       
+            if(context.loggedIn == true){
+                let welcome = document.getElementsByTagName('a')[1];
+                welcome.innerHTML+=user+"!";
+            }
         });
     });
 }
@@ -196,7 +301,7 @@ function shareRecipe(context) {
     let foodImageURL = this.params.foodImageURL;
     let category = this.params.category;
     let categoryImageURL = categoryImageObj[category];
-    fetch("https://recipes-1a392-default-rtdb.firebaseio.com/recipes", {
+    fetch("https://recipes-1a392-default-rtdb.firebaseio.com/recipes.json", {
         mode: "no-cors",
         method: "POST",
         body: JSON.stringify({
@@ -207,7 +312,8 @@ function shareRecipe(context) {
             foodImageURL,
             category,
             categoryImageURL,
-            likesCounter: 0
+            likesCounter: 0,
+            originalPoster: user
         })
     })
     .then(()=>{
@@ -215,4 +321,76 @@ function shareRecipe(context) {
             context.redirect("#/home");
         }, 2000)
     })
+}
+
+function getEditPage(context) {
+    // if(user.length != 0){
+    //     context.loggedIn = true;
+    // }else{
+    //     context.loggedIn = false;
+    // }
+    context
+    .loadPartials({
+        header: "../views/header.hbs",
+    })
+    .then(function () {
+        this.partial("./views/edit.hbs",()=>{
+            console.log("went to edit page!");
+            if(context.loggedIn == true){
+                let welcome = document.getElementsByTagName("a")[1];
+                welcome.innerHTML+=user+"!";
+            }
+            let recipeID = context.params.id;
+            context.id = recipeID.substr(1);
+            fetch(`https://recipes-1a392-default-rtdb.firebaseio.com/recipes/${context.id}.json`).then((response)=>{
+                return response.json();
+            }).then((recipeObj)=>{
+              let originalProperties = Object.keys(recipeObj);
+              let textFields = document.querySelectorAll('.edit');
+              let categories = document.querySelector('select');
+              console.log(textFields);
+              textFields.forEach(tf=>{
+                  let match = originalProperties.find(prop=>prop==tf.name);
+                  tf.value = recipeObj[match];
+              })
+              categories.firstElementChild.innerHTML = recipeObj["category"];
+            })  
+        })
+    })
+}
+
+async function edit(context) {
+    // let recipeID = context.params.id;
+
+    // context.id = recipeID.substr(1);
+    // console.log(context);
+    // let description = document.getElementById('defaultRecepieEditDescription').value;
+    // let foodImageURL = document.getElementById('defaultRecepieEditFoodImageURL').value;
+
+    // let meal = document.getElementById('defaultRecepieEditMeal').value;
+
+    // let ingredients = document.getElementById('defaultRecepieEditIngredients').value;
+
+    // let prepMethod = document.getElementById('defaultRecepieEditMethodOfPreparation').value;
+
+    // let category = document.querySelector('select').value;
+
+    // let categoryImageURL = context.params.categoryImageURL;
+    // let originalPoster = context.params.originalPoster;
+    // let likesCounter = context.params.likesCounter;
+
+    // fetch(`https://recipes-1a392-default-rtdb.firebaseio.com/${recipeID.substr(1)}.json`, {
+    //   method: "POST",
+    //     body: JSON.stringify({
+    //       description,
+    //       foodImageURL,
+    //       meal,
+    //       ingredients,
+    //       prepMethod,
+    //       category,
+    //       categoryImageURL,
+    //       originalPoster,
+    //       likesCounter
+    //     }),
+    // })
 }
